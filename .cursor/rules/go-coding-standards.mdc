@@ -1,0 +1,140 @@
+---
+globs: *.go
+description: Go Coding Standards and Best Practices
+---
+
+# Go Coding Standards
+
+## Code Style
+
+### Formatting
+- Use `gofmt` and `goimports` for consistent formatting
+- Follow standard Go naming conventions
+- Use meaningful variable and function names
+- Keep functions small and focused (max 50 lines)
+
+### Error Handling
+```go
+// Always handle errors explicitly
+if err != nil {
+    return fmt.Errorf("operation failed: %w", err)
+}
+
+// Use wrapped errors for context
+return fmt.Errorf("failed to encrypt key: %w", err)
+```
+
+### Package Organization
+- Keep packages focused and cohesive
+- Use internal packages for private implementation details
+- Export only necessary types and functions
+- Document all public APIs
+
+## Security-Focused Patterns
+
+### Cryptographic Operations
+```go
+// Always use cryptographically secure random
+import "crypto/rand"
+
+// Generate secure random bytes
+nonce := make([]byte, 12) // AES-GCM nonce size
+if _, err := rand.Read(nonce); err != nil {
+    return fmt.Errorf("failed to generate nonce: %w", err)
+}
+```
+
+### Memory Management
+```go
+// Clear sensitive data from memory
+func clearBytes(b []byte) {
+    for i := range b {
+        b[i] = 0
+    }
+}
+
+// Use defer to ensure cleanup
+defer clearBytes(passphrase)
+```
+
+### Input Validation
+```go
+// Validate all inputs
+func validateSSHKey(keyPath string) error {
+    if keyPath == "" {
+        return errors.New("SSH key path cannot be empty")
+    }
+    
+    if !filepath.IsAbs(keyPath) {
+        return errors.New("SSH key path must be absolute")
+    }
+    
+    return nil
+}
+```
+
+## Testing Standards
+
+### Unit Tests
+- Test all public functions
+- Use table-driven tests for multiple scenarios
+- Mock external dependencies
+- Test error conditions
+
+### Security Tests
+- Test with invalid inputs
+- Verify cryptographic operations
+- Test memory cleanup
+- Validate error handling
+
+### Example Test Structure
+```go
+func TestEncryptSSHKey(t *testing.T) {
+    tests := []struct {
+        name        string
+        keyPath     string
+        passphrase  string
+        wantErr     bool
+        errContains string
+    }{
+        {
+            name:       "valid encryption",
+            keyPath:    "testdata/id_ed25519",
+            passphrase: "test-passphrase",
+            wantErr:    false,
+        },
+        {
+            name:        "empty passphrase",
+            keyPath:     "testdata/id_ed25519",
+            passphrase:  "",
+            wantErr:     true,
+            errContains: "passphrase cannot be empty",
+        },
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Test implementation
+        })
+    }
+}
+```
+
+## Dependencies
+
+### Core Dependencies
+- `crypto/aes`, `crypto/cipher`: AES-GCM encryption
+- `golang.org/x/crypto/argon2`: Argon2id KDF
+- `github.com/spf13/cobra`: CLI framework
+- `github.com/spf13/viper`: Configuration management
+
+### Development Dependencies
+- `github.com/stretchr/testify`: Testing utilities
+- `golang.org/x/tools`: Development tools
+- `github.com/golangci/golangci-lint`: Linting
+
+### Version Management
+- Use Go modules (`go.mod`)
+- Pin dependency versions
+- Regular security updates
+- Minimal dependency footprint

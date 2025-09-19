@@ -1,0 +1,149 @@
+---
+globs: internal/github/*.go,*.go
+description: GitHub Integration for Automated Backup
+---
+
+# GitHub Integration
+
+## Repository Management
+
+### Target Repository Structure
+```
+private-backups/
+├── ssh-keys/
+│   ├── id_ed25519.enc
+│   ├── id_rsa.enc
+│   └── metadata.json
+├── .gitignore
+└── README.md
+```
+
+### .gitignore Configuration
+```gitignore
+# Never commit raw SSH keys
+*.pem
+id_*
+!*.enc
+!metadata.json
+
+# Environment files
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.bak
+```
+
+## GitHub API Integration
+
+### Authentication
+- Use GitHub Personal Access Tokens
+- Support environment variable: `GITHUB_TOKEN`
+- Support CLI flag: `--github-token`
+- Required scopes: `repo` (for private repositories)
+
+### API Operations
+```go
+type GitHubClient struct {
+    client *github.Client
+    owner  string
+    repo   string
+}
+
+// Upload encrypted SSH key
+func (c *GitHubClient) UploadSSHKey(filename string, content []byte) error
+
+// Download encrypted SSH key
+func (c *GitHubClient) DownloadSSHKey(filename string) ([]byte, error)
+
+// List available encrypted keys
+func (c *GitHubClient) ListSSHKeys() ([]string, error)
+```
+
+### File Naming Convention
+- Format: `{key-type}_{timestamp}.enc`
+- Examples:
+  - `id_ed25519_20240119_143022.enc`
+  - `id_rsa_20240119_143022.enc`
+  - `custom_key_20240119_143022.enc`
+
+## Metadata Management
+
+### Metadata File Structure
+```json
+{
+  "version": "1.0",
+  "created_at": "2024-01-19T14:30:22Z",
+  "keys": [
+    {
+      "filename": "id_ed25519_20240119_143022.enc",
+      "original_name": "id_ed25519",
+      "comment": "HadesLinux root key",
+      "algorithm": "AES-256-GCM",
+      "kdf": "Argon2id",
+      "iterations": 100000,
+      "size": 1024,
+      "checksum": "sha256:abc123..."
+    }
+  ]
+}
+```
+
+## Error Handling
+
+### GitHub API Errors
+- Handle rate limiting (429 responses)
+- Retry with exponential backoff
+- Clear error messages for authentication failures
+- Network timeout handling
+
+### Backup Strategy
+- Verify upload success
+- Maintain local backup as fallback
+- Support multiple repository targets
+- Atomic operations (upload metadata last)
+
+## Security Considerations
+
+### Repository Security
+- Use private repositories only
+- Enable branch protection rules
+- Regular access token rotation
+- Audit log monitoring
+
+### Data Protection
+- Never log sensitive data
+- Use HTTPS for all API calls
+- Validate SSL certificates
+- Secure token storage
+
+## CLI Integration
+
+### GitHub Commands
+```bash
+# Setup GitHub integration
+sshhades github setup --repo user/private-backups
+
+# Backup with GitHub upload
+sshhades backup --github --repo user/private-backups
+
+# List remote keys
+sshhades github list
+
+# Download from GitHub
+sshhades restore --github --repo user/private-backups --key id_ed25519
+```
+
+### Configuration
+```yaml
+# ~/.config/sshhades/github.yaml
+repositories:
+  default: "user/private-backups"
+  backup:
+    - "user/private-backups"
+    - "user/emergency-backups"
+branches:
+  default: "main"
+  backup: "ssh-keys"
+```

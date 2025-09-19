@@ -1,0 +1,16 @@
+{
+  "header": {
+    "version": "1.0",
+    "algorithm": "ChaCha20-Poly1305",
+    "kdf": "Argon2id",
+    "iterations": 1000,
+    "memory": 8,
+    "threads": 1,
+    "timestamp": "2025-09-19T15:53:11.166658728Z",
+    "comment": "Demo SSH key fast backup"
+  },
+  "salt": "np0UtP0tE1hDDL7wfnHxXVVzm3/ok/hnK0oZjW2HWuc=",
+  "nonce": "DlLhnmAQcAq3gXYt",
+  "ciphertext": "gljK4VxodGte09g8PoUcAfQaCR2UhArZLoeiqqDoR+F8kPv2oE1PG4TgukXFe6luhZdr6Kz6aw+iChax37LUEl0m4zwU2BvMFJP+DGS6prZYJ56sbIOcy7xPEJ/6rk4CsWs=",
+  "tag": "K4iMJoSGQMfunpvV+onw2Q=="
+}

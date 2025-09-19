@@ -1,0 +1,92 @@
+---
+globs: cmd/**/*.go,*.go
+description: CLI Interface Design and Command Structure
+---
+
+# CLI Interface Design
+
+## Command Structure
+
+### Primary Commands
+```bash
+sshhades backup [flags]     # Encrypt and backup SSH key
+sshhades restore [flags]    # Decrypt and restore SSH key
+sshhades list               # List available encrypted keys
+sshhades verify [file]      # Verify encrypted file integrity
+```
+
+### Backup Command
+```bash
+sshhades backup \
+  --input ~/.ssh/id_ed25519 \
+  --output ~/backups/id_ed25519.enc \
+  --comment "HadesLinux root key" \
+  --iterations 100000 \
+  --github-repo "user/private-backups"
+```
+
+### Restore Command
+```bash
+sshhades restore \
+  --input ~/backups/id_ed25519.enc \
+  --output ~/.ssh/id_ed25519 \
+  --passphrase-env SSH_PASSPHRASE
+```
+
+## Flag Conventions
+
+### Input/Output
+- `--input, -i`: Source file path
+- `--output, -o`: Destination file path
+- `--comment, -c`: Human-readable label for the key
+
+### Security
+- `--iterations, -n`: Argon2id iterations (default: 100000)
+- `--memory`: Argon2id memory usage in MB (default: 64)
+- `--threads`: Argon2id parallelism (default: 4)
+
+### Passphrase Handling
+- `--passphrase`: Direct passphrase (not recommended)
+- `--passphrase-env`: Environment variable name
+- `--passphrase-file`: Read from file
+- Interactive prompt (default, most secure)
+
+### GitHub Integration
+- `--github-repo`: Repository for automatic backup
+- `--github-token`: GitHub personal access token
+- `--github-branch`: Target branch (default: main)
+
+## Error Handling
+
+### Exit Codes
+- `0`: Success
+- `1`: General error
+- `2`: Authentication failure
+- `3`: File I/O error
+- `4`: Cryptographic error
+- `5`: GitHub API error
+
+### User Experience
+- Clear, actionable error messages
+- Progress indicators for long operations
+- Confirmation prompts for destructive operations
+- Verbose mode for debugging (`--verbose, -v`)
+
+## Configuration
+
+### Config File Support
+```yaml
+# ~/.config/sshhades/config.yaml
+defaults:
+  iterations: 100000
+  memory: 64
+  threads: 4
+github:
+  default_repo: "user/private-backups"
+  branch: "main"
+```
+
+### Environment Variables
+- `SSHHADES_PASSPHRASE`: Default passphrase
+- `SSHHADES_GITHUB_TOKEN`: GitHub token
+- `SSHHADES_CONFIG`: Config file path

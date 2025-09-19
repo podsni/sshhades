@@ -1,0 +1,66 @@
+---
+globs: *.go
+description: Encryption and Security Standards for SSH Key Protection
+---
+
+# Encryption Standards & Security Requirements
+
+## Core Encryption Stack
+
+### 1. AES-GCM (Galois/Counter Mode)
+- **Algorithm**: AES-256-GCM
+- **Package**: `crypto/aes` + `crypto/cipher`
+- **Benefits**: Authenticated encryption (integrity + confidentiality)
+- **Performance**: Fast, widely tested, native Go support
+
+### 2. Key Derivation Function (KDF)
+- **Algorithm**: Argon2id (preferred) or scrypt
+- **Purpose**: Derive AES key from user passphrase
+- **Security**: Prevents brute-force attacks on backup files
+- **Package**: `golang.org/x/crypto/argon2`
+
+## Encrypted File Format
+
+### Structure: `[version]|[nonce]|[ciphertext]|[tag]`
+
+```go
+type EncryptedFile struct {
+    Version     string    // File format version
+    Algorithm   string    // "AES-256-GCM"
+    KDF         string    // "Argon2id"
+    Iterations  uint32    // KDF iterations
+    Salt        []byte    // Random salt for KDF
+    Nonce       []byte    // AES-GCM nonce
+    Ciphertext  []byte    // Encrypted SSH key
+    Tag         []byte    // AES-GCM authentication tag
+    Timestamp   time.Time // Creation timestamp
+    Comment     string    // User-provided label
+}
+```
+
+## Security Best Practices
+
+### Password Handling
+- **Never store passphrases** in code or config files
+- Use environment variables or interactive prompts
+- Consider integration with password managers
+
+### Error Handling
+- Always verify GCM authentication tags
+- Fail securely on decryption errors
+- Log security events without exposing sensitive data
+
+### Key Management
+- Generate unique salt per file
+- Use cryptographically secure random number generation
+- Implement proper key derivation parameters
+
+## Implementation Guidelines
+
+```go
+// Example encryption flow
+passphrase -> Argon2id(salt, iterations) -> AES key -> AES-GCM(SSH key) -> encrypted file
+
+// Example decryption flow
+encrypted file -> verify tag -> AES-GCM decrypt -> SSH key
+```

@@ -1,0 +1,203 @@
+---
+alwaysApply: true
+description: Security Guidelines and Best Practices
+---
+
+# Security Guidelines
+
+## Core Security Principles
+
+### Defense in Depth
+- Multiple layers of security controls
+- Fail-secure defaults
+- Principle of least privilege
+- Defense against multiple attack vectors
+
+### Cryptographic Security
+- Use only well-vetted cryptographic libraries
+- Implement proper key management
+- Regular security updates
+- Cryptographic agility (ability to upgrade algorithms)
+
+## Threat Model
+
+### Potential Threats
+1. **File System Access**: Unauthorized access to encrypted files
+2. **Memory Dumps**: Extraction of keys from process memory
+3. **Network Interception**: GitHub API communication
+4. **Social Engineering**: Phishing for passphrases
+5. **Malware**: Keyloggers capturing passphrases
+6. **Physical Access**: Unauthorized device access
+
+### Mitigation Strategies
+- Encrypted file format with authentication
+- Memory clearing after operations
+- HTTPS/TLS for all network communication
+- Passphrase handling best practices
+- Secure development practices
+
+## Secure Coding Practices
+
+### Input Validation
+```go
+// Always validate inputs
+func validateInput(input string) error {
+    if len(input) == 0 {
+        return errors.New("input cannot be empty")
+    }
+    
+    if len(input) > maxInputLength {
+        return errors.New("input too long")
+    }
+    
+    // Check for path traversal
+    if strings.Contains(input, "..") {
+        return errors.New("invalid path")
+    }
+    
+    return nil
+}
+```
+
+### Memory Security
+```go
+// Clear sensitive data
+func secureClear(data []byte) {
+    for i := range data {
+        data[i] = 0
+    }
+}
+
+// Use defer for cleanup
+func processKey(key []byte) error {
+    defer secureClear(key)
+    // Process key...
+}
+```
+
+### Error Handling
+```go
+// Don't leak sensitive information in errors
+func decryptKey(encrypted []byte, passphrase string) ([]byte, error) {
+    // ... decryption logic ...
+    
+    if err != nil {
+        // Log error internally (without sensitive data)
+        log.Printf("Decryption failed: %v", err)
+        
+        // Return generic error to user
+        return nil, errors.New("decryption failed")
+    }
+    
+    return decrypted, nil
+}
+```
+
+## Passphrase Security
+
+### Handling Guidelines
+- Never log passphrases
+- Clear from memory after use
+- Use secure input methods
+- Support environment variables
+- Integrate with password managers
+
+### Implementation
+```go
+func getPassphrase() (string, error) {
+    // Try environment variable first
+    if passphrase := os.Getenv("SSHHADES_PASSPHRASE"); passphrase != "" {
+        return passphrase, nil
+    }
+    
+    // Interactive prompt
+    return promptPassphrase()
+}
+
+func promptPassphrase() (string, error) {
+    fmt.Print("Enter passphrase: ")
+    passphrase, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+    if err != nil {
+        return "", err
+    }
+    
+    fmt.Println() // New line after hidden input
+    return string(passphrase), nil
+}
+```
+
+## File Security
+
+### Permissions
+- Encrypted files: 600 (owner read/write only)
+- Configuration files: 644 (owner read/write, group/other read)
+- Executable: 755 (owner read/write/execute, group/other read/execute)
+
+### File Validation
+```go
+func validateFilePermissions(path string) error {
+    info, err := os.Stat(path)
+    if err != nil {
+        return err
+    }
+    
+    mode := info.Mode()
+    if mode&0o077 != 0 {
+        return errors.New("file has overly permissive permissions")
+    }
+    
+    return nil
+}
+```
+
+## Network Security
+
+### GitHub API Security
+- Always use HTTPS
+- Validate SSL certificates
+- Use secure token storage
+- Implement proper error handling
+- Rate limiting and retry logic
+
+### API Implementation
+```go
+func createSecureClient(token string) *http.Client {
+    return &http.Client{
+        Transport: &http.Transport{
+            TLSClientConfig: &tls.Config{
+                MinVersion: tls.VersionTLS12,
+            },
+        },
+        Timeout: 30 * time.Second,
+    }
+}
+```
+
+## Audit and Monitoring
+
+### Security Logging
+- Log security events (without sensitive data)
+- Monitor for suspicious activity
+- Track authentication failures
+- Audit file access patterns
+
+### Regular Security Tasks
+- Dependency vulnerability scanning
+- Cryptographic library updates
+- Security code reviews
+- Penetration testing
+- Incident response planning
+
+## Compliance Considerations
+
+### Data Protection
+- Minimize data collection
+- Secure data transmission
+- Proper data retention
+- User consent for data processing
+
+### Privacy
+- No telemetry or usage tracking
+- Local processing only
+- User control over data
+- Transparent security practices

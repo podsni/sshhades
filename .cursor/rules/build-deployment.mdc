@@ -1,0 +1,182 @@
+---
+globs: scripts/*,Makefile,*.mk,*.sh
+description: Build, Testing, and Deployment Guidelines
+---
+
+# Build & Deployment
+
+## Build System
+
+### Makefile Structure
+```makefile
+# Build targets
+.PHONY: build test clean install
+
+# Build for multiple platforms
+build:
+	@echo "Building sshhades..."
+	@mkdir -p dist/
+	@GOOS=linux GOARCH=amd64 go build -o dist/sshhades-linux-amd64 ./cmd/sshhades
+	@GOOS=windows GOARCH=amd64 go build -o dist/sshhades-windows-amd64.exe ./cmd/sshhades
+	@GOOS=darwin GOARCH=amd64 go build -o dist/sshhades-darwin-amd64 ./cmd/sshhades
+	@GOOS=darwin GOARCH=arm64 go build -o dist/sshhades-darwin-arm64 ./cmd/sshhades
+
+# Development build
+dev:
+	@go build -o bin/sshhades ./cmd/sshhades
+
+# Install to system
+install: build
+	@sudo cp dist/sshhades-linux-amd64 /usr/local/bin/sshhades
+	@sudo chmod +x /usr/local/bin/sshhades
+```
+
+### Go Build Configuration
+```go
+// cmd/sshhades/main.go
+package main
+
+import (
+    "fmt"
+    "os"
+    "runtime"
+)
+
+var (
+    version   = "dev"
+    buildTime = "unknown"
+    gitCommit = "unknown"
+)
+
+func main() {
+    // Application entry point
+}
+```
+
+## Testing Strategy
+
+### Test Structure
+```
+internal/
+├── crypto/
+│   ├── crypto.go
+│   ├── crypto_test.go
+│   └── testdata/
+├── ssh/
+│   ├── ssh.go
+│   └── ssh_test.go
+└── storage/
+    ├── storage.go
+    └── storage_test.go
+```
+
+### Test Commands
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Run security-focused tests
+make test-security
+
+# Run integration tests
+make test-integration
+```
+
+### Test Data Management
+- Use `testdata/` directories for test fixtures
+- Generate test SSH keys programmatically
+- Clean up test files after execution
+- Use temporary directories for file operations
+
+## Security Testing
+
+### Cryptographic Testing
+```go
+func TestEncryptionSecurity(t *testing.T) {
+    // Test with known vectors
+    // Verify GCM authentication
+    // Test key derivation
+    // Validate random generation
+}
+```
+
+### Input Validation Testing
+```go
+func TestInputValidation(t *testing.T) {
+    // Test malicious inputs
+    // Test path traversal
+    // Test file size limits
+    // Test invalid formats
+}
+```
+
+## Release Process
+
+### Version Management
+- Semantic versioning (v1.0.0)
+- Git tags for releases
+- Changelog maintenance
+- Security advisory process
+
+### Release Checklist
+- [ ] All tests passing
+- [ ] Security audit completed
+- [ ] Documentation updated
+- [ ] Cross-platform builds tested
+- [ ] GitHub release created
+- [ ] Binary signatures generated
+
+### Distribution
+- GitHub Releases with binaries
+- Package managers (Homebrew, apt, etc.)
+- Docker images for containerized usage
+- Self-contained binaries (no external dependencies)
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+```yaml
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.21'
+      - run: make test
+      - run: make test-security
+      - run: make test-coverage
+```
+
+### Security Scanning
+- Dependency vulnerability scanning
+- Static code analysis
+- Cryptographic library validation
+- Secret detection
+
+## Documentation
+
+### Required Documentation
+- README.md with installation instructions
+- API documentation (godoc)
+- Security considerations
+- Troubleshooting guide
+- Contributing guidelines
+
+### Documentation Standards
+- Clear, concise language
+- Code examples for all features
+- Security warnings prominently displayed
+- Regular updates with releases

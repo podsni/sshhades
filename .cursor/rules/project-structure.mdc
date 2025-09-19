@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+description: SSH Hades - SSH Key Encryption Project Structure Guide
+---
+
+# SSH Hades Project Structure
+
+This is a Go-based CLI tool for encrypting and backing up SSH keys using AES-GCM encryption.
+
+## Core Components
+
+- **Main CLI**: Entry point for backup/restore operations
+- **Encryption Engine**: AES-256-GCM + Argon2id KDF implementation
+- **Key Management**: SSH key reading/writing utilities
+- **File Format**: Custom encrypted file format with metadata
+- **GitHub Integration**: Optional automated backup to private repos
+
+## Project Layout
+
+```
+sshhades/
+├── cmd/
+│   └── sshhades/          # Main CLI application
+├── internal/
+│   ├── crypto/            # Encryption/decryption logic
+│   ├── ssh/               # SSH key handling
+│   ├── storage/           # File I/O operations
+│   └── github/            # GitHub API integration
+├── pkg/
+│   └── format/            # Encrypted file format specification
+├── configs/               # Configuration files
+├── scripts/               # Build and deployment scripts
+└── docs/                  # Documentation
+```
+
+## Key Files
+
+- [main.go](mdc:cmd/sshhades/main.go) - CLI entry point
+- [crypto.go](mdc:internal/crypto/crypto.go) - AES-GCM encryption implementation
+- [kdf.go](mdc:internal/crypto/kdf.go) - Argon2id key derivation
+- [format.go](mdc:pkg/format/format.go) - Encrypted file format specification
