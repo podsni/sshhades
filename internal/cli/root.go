@@ -20,11 +20,14 @@ It uses AES-256-GCM encryption with Argon2id key derivation to protect your SSH 
 	}
 
 	// Add subcommands
-	rootCmd.AddCommand(newInteractiveCommand())
-	rootCmd.AddCommand(newBackupCommand())
-	rootCmd.AddCommand(newRestoreCommand())
-	rootCmd.AddCommand(newListCommand())
-	rootCmd.AddCommand(newVerifyCommand())
+	rootCmd.AddCommand(NewBackupCmd())
+	rootCmd.AddCommand(NewRestoreCmd())
+	rootCmd.AddCommand(NewListCmd())
+	rootCmd.AddCommand(NewVerifyCmd())
+	rootCmd.AddCommand(NewInteractiveCmd())
+	rootCmd.AddCommand(NewGitHubCmd())
+
+	return rootCmd
 
 	return rootCmd
 }

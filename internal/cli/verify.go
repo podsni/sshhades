@@ -13,7 +13,7 @@ type verifyFlags struct {
 	input string
 }
 
-func newVerifyCommand() *cobra.Command {
+func NewVerifyCmd() *cobra.Command {
 	flags := &verifyFlags{}
 
 	cmd := &cobra.Command{

@@ -6,13 +6,15 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/sshhades/sshhades/internal/config"
 	"github.com/sshhades/sshhades/internal/crypto"
+	"github.com/sshhades/sshhades/internal/github"
 	"github.com/sshhades/sshhades/internal/ssh"
 	"github.com/sshhades/sshhades/internal/storage"
 	"github.com/sshhades/sshhades/pkg/format"
 )
 
-func newInteractiveCommand() *cobra.Command {
+func NewInteractiveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "interactive",
 		Short: "Mode interaktif untuk backup SSH key",
@@ -152,6 +154,43 @@ func runInteractive() error {
 	fmt.Printf("💾 Menyimpan file terenkripsi ke %s...\n", outputPath)
 	if err := storage.SaveEncryptedFile(outputPath, encFile); err != nil {
 		return fmt.Errorf("failed to save encrypted file: %w", err)
+	}
+
+	// Step 8: GitHub integration (optional)
+	fmt.Println()
+	githubUpload := false
+	cfg, err := config.LoadConfig()
+	if err == nil && cfg.IsGitHubConfigured() {
+		fmt.Println("☁️  Step 8: Upload ke GitHub")
+		github.PrintInfo("GitHub sudah dikonfigurasi!")
+		fmt.Printf("📂 Repository: %s/%s\n", cfg.GitHub.RepoOwner, cfg.GitHub.RepoName)
+		fmt.Print("❓ Upload backup ke GitHub? (Y/n): ")
+		var upload string
+		fmt.Scanln(&upload)
+		if upload == "" || upload == "y" || upload == "Y" {
+			githubUpload = true
+		}
+	} else {
+		fmt.Println("☁️  Step 8: GitHub Integration (Opsional)")
+		fmt.Print("❓ Ingin setup GitHub untuk backup otomatis? (y/N): ")
+		var setup string
+		fmt.Scanln(&setup)
+		if setup == "y" || setup == "Y" {
+			github.PrintInfo("Menjalankan setup GitHub...")
+			// We'll just inform them to run the command manually for now
+			github.PrintInfo("Jalankan 'sshhades github login' untuk setup GitHub integration")
+		}
+	}
+
+	// Upload to GitHub if requested
+	if githubUpload {
+		fmt.Println("📤 Mengupload ke GitHub...")
+		if err := uploadToGitHub(outputPath, comment); err != nil {
+			github.PrintError(fmt.Sprintf("Upload gagal: %v", err))
+			github.PrintInfo("Backup tersimpan lokal, tapi tidak terupload ke GitHub")
+		} else {
+			github.PrintSuccess("✅ Berhasil diupload ke GitHub!")
+		}
 	}
 
 	// Success summary

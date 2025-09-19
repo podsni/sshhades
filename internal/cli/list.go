@@ -18,7 +18,7 @@ type listFlags struct {
 	verbose   bool
 }
 
-func newListCommand() *cobra.Command {
+func NewListCmd() *cobra.Command {
 	flags := &listFlags{}
 
 	cmd := &cobra.Command{

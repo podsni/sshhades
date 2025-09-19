@@ -17,7 +17,7 @@ type restoreFlags struct {
 	force         bool
 }
 
-func newRestoreCommand() *cobra.Command {
+func NewRestoreCmd() *cobra.Command {
 	flags := &restoreFlags{}
 
 	cmd := &cobra.Command{

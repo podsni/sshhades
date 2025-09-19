@@ -2,7 +2,14 @@
 
 A secure Go CLI tool for encrypting and backing up SSH keys using AES-256-GCM encryption with Argon2id key derivation.
 
-## Performance Modes
+The interactive mode will guide you through:
+- 📁 Selecting SSH keys from ~/.ssh directory
+- 🔒 Choosing encryption algorithm (AES-256-GCM or ChaCha20-Poly1305)
+- ⚡ Performance mode selection (Production vs Development)
+- 💬 Adding comments and metadata
+- ☁️ Optional GitHub integration for automatic backups
+
+### Manual Backup Commands
 
 SSH Hades offers two performance modes to balance security and speed:
 
@@ -44,7 +51,83 @@ sshhades backup --input ~/.ssh/id_ed25519 --output backup.enc
 sshhades backup --input ~/.ssh/id_ed25519 --output backup.enc --algorithm chacha20
 
 # Use AES-256-GCM (default)
-sshhades backup --input ~/.ssh/id_ed25519 --output backup.enc --algorithm aes
+# Backup with GitHub upload
+sshhades backup -i ~/.ssh/id_ed25519 -o backup.enc --github
+
+# Fast ChaCha20 backup to GitHub
+sshhades backup -i ~/.ssh/id_rsa -o backup.enc --algorithm chacha20 --fast --github
+```
+
+## GitHub Integration
+
+SSH Hades provides seamless GitHub integration for automatic encrypted backups to your private repositories.
+
+### Setup GitHub Authentication
+
+#### Option 1: Personal Access Token (Recommended)
+
+```bash
+# Start interactive setup
+sshhades github login
+
+# Choose option 1 for Personal Access Token
+# Create token at: https://github.com/settings/tokens
+# Required scope: repo (Full control of private repositories)
+```
+
+#### Option 2: SSH Key Authentication
+
+```bash
+# Start interactive setup  
+sshhades github login
+
+# Choose option 2 for SSH Key
+# Select from your existing SSH keys in ~/.ssh/
+# Make sure the key is added to your GitHub account
+```
+
+### GitHub Commands
+
+```bash
+# Setup GitHub authentication
+sshhades github login
+
+# Check GitHub status
+sshhades github status
+
+# List your repositories (token auth only)
+sshhades github repos
+
+# Remove GitHub configuration
+sshhades github logout
+```
+
+### Automated Backups
+
+Once GitHub is configured, you can automatically upload encrypted backups:
+
+```bash
+# Backup with automatic GitHub upload
+sshhades backup --input ~/.ssh/id_ed25519 --output backup.enc --github
+
+# Interactive mode with GitHub integration
+sshhades interactive
+# ↳ Follow prompts to backup and optionally upload to GitHub
+```
+
+### Repository Structure
+
+Your GitHub backup repository will have this structure:
+```
+ssh-keys-backup/
+├── ssh-keys/
+│   ├── id_ed25519_backup_20231201.enc
+│   ├── id_rsa_backup_20231202.enc
+│   └── ...
+└── README.md
+```
+
+## Performance Modes
 ```
 
 - **🔒 Multiple Encryption Algorithms**: AES-256-GCM and ChaCha20-Poly1305
@@ -94,13 +177,19 @@ sshhades i
 sshhades wizard
 ```
 
-The interactive mode will guide you through:
-- 📁 Selecting SSH keys from ~/.ssh directory
-- 🔒 Choosing encryption algorithm (AES-256-GCM or ChaCha20-Poly1305)
-- ⚡ Performance mode selection (Production vs Development)
-- 💬 Adding comments and metadata
+## Features
 
-### Manual Backup Commands
+- 🔐 **Military-grade encryption**: AES-256-GCM and ChaCha20-Poly1305 with Argon2id KDF
+- 🚀 **Performance modes**: Choose between maximum security or fast operations
+- 🎯 **Interactive wizard**: User-friendly interface for SSH key selection and encryption
+- ☁️ **GitHub Integration**: Seamless authentication and automated backups to private repositories
+- � **Multiple auth methods**: GitHub Personal Access Token or SSH key authentication
+- 🔄 **Backup & Restore**: Seamlessly encrypt and decrypt SSH keys
+- 🔍 **File verification**: Integrity checking and metadata display
+- 📱 **Cross-platform**: Linux, macOS, Windows support
+- 🛡️ **Security-first**: Memory clearing, secure random generation, authenticated encryption
+- � **Repository management**: Create, list, and manage backup repositories
+- 🎨 **Beautiful CLI**: Styled output with clear status indicators and progress feedback
 
 ### Backup an SSH Key
 
@@ -269,6 +358,93 @@ make test
 
 # Test with coverage
 make test-coverage
+```
+
+## Troubleshooting
+
+### GitHub Authentication Issues
+
+**"invalid GitHub token" error:**
+- Verify token has `repo` scope
+- Check token expiration date
+- Ensure token isn't revoked
+
+**SSH authentication fails:**
+- Verify SSH key is added to GitHub account: https://github.com/settings/ssh
+- Test connection: `ssh -T git@github.com`
+- Check SSH agent is running: `ssh-add -l`
+
+**Repository access denied:**
+- Ensure repository exists and you have write access
+- For private repos, verify token has full repo scope
+- Check repository name spelling
+
+### Performance Issues
+
+**Slow encryption/decryption:**
+- Use `--fast` flag for development work
+- Consider SSD storage for better I/O performance
+- Ensure sufficient available memory
+
+**Large file handling:**
+- SSH keys are typically small, but if issues occur:
+- Check available disk space
+- Verify memory usage during operation
+
+## Security Considerations
+
+### Best Practices
+
+1. **Passphrase Security**
+   - Use unique, strong passphrases
+   - Consider using a password manager
+   - Never share passphrases
+
+2. **GitHub Token Security**
+   - Use minimum required permissions (`repo` scope only)
+   - Regularly rotate tokens
+   - Store tokens securely (SSH Hades stores in `~/.config/sshhades/`)
+
+3. **SSH Key Management**
+   - Regularly rotate SSH keys
+   - Use different keys for different purposes
+   - Monitor GitHub key usage in settings
+
+4. **Backup Security**
+   - Encrypted files are safe to store in cloud
+   - Regular backup verification with `sshhades verify`
+   - Keep backup locations documented
+
+### Threat Model
+
+SSH Hades protects against:
+- ✅ Unauthorized access to stored encrypted files
+- ✅ Man-in-the-middle attacks (GitHub HTTPS)
+- ✅ Brute force attacks on encrypted files
+- ✅ Memory dump attacks (automatic memory clearing)
+
+Does NOT protect against:
+- ❌ Compromised GitHub accounts (use 2FA)
+- ❌ Malware on local system
+- ❌ Physical access to unlocked systems
+- ❌ Quantum computing attacks (use post-quantum algorithms when available)
+
+## Configuration
+
+SSH Hades stores configuration in `~/.config/sshhades/config.json`:
+
+```json
+{
+  "github": {
+    "username": "your-username",
+    "auth_method": "token",
+    "repo_name": "ssh-keys-backup",
+    "repo_owner": "your-username"
+  }
+}
+```
+
+**Note:** Sensitive data like tokens are stored encrypted.
 
 # Security tests
 make test-security

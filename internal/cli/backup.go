@@ -3,11 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/sshhades/sshhades/internal/config"
 	"github.com/sshhades/sshhades/internal/crypto"
 	"github.com/sshhades/sshhades/internal/github"
 	"github.com/sshhades/sshhades/internal/ssh"
@@ -27,52 +29,58 @@ type backupFlags struct {
 	githubRepo   string
 	githubToken  string
 	fastMode     bool
+	githubUpload bool
 }
 
-func newBackupCommand() *cobra.Command {
-	flags := &backupFlags{}
+func NewBackupCmd() *cobra.Command {
+	var (
+		inputFile   string
+		outputFile  string
+		comment     string
+		algorithm   string
+		fast        bool
+		githubUpload bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "backup",
-		Short: "Encrypt and backup an SSH key",
-		Long: `Encrypt an SSH key using AES-256-GCM with Argon2id key derivation.
-The encrypted key can optionally be uploaded to a private GitHub repository.`,
-		Example: `  # Backup a private key
-  sshhades backup --input ~/.ssh/id_ed25519 --output ~/backups/id_ed25519.enc --comment "Main SSH key"
-  
-	# Backup with custom security parameters
-  sshhades backup -i ~/.ssh/id_rsa -o ~/backups/id_rsa.enc --iterations 200000 --memory 128
-  
-  # Backup with ChaCha20-Poly1305 algorithm
-  sshhades backup -i ~/.ssh/id_ed25519 -o backup.enc --algorithm chacha20
-  
-  # Fast mode for development
-  sshhades backup -i ~/.ssh/id_rsa -o backup.enc --fast
-  
-  # Backup and upload to GitHub
-  sshhades backup -i ~/.ssh/id_ed25519 -o id_ed25519.enc --github-repo "user/ssh-backups"`,
+		Short: "Encrypt and backup SSH key",
+		Long: `Encrypt an SSH private key using AES-256-GCM or ChaCha20-Poly1305 encryption.
+		
+The encrypted file can be safely stored or shared, and can optionally be uploaded to GitHub.`,
+		Example: `  # Basic backup with AES-256-GCM
+  sshhades backup --input ~/.ssh/id_ed25519 --output backup.enc
+
+  # Fast backup with ChaCha20-Poly1305
+  sshhades backup -i ~/.ssh/id_rsa -o backup.enc --algorithm chacha20 --fast
+
+  # Backup with GitHub upload
+  sshhades backup -i ~/.ssh/id_ed25519 -o backup.enc --github
+
+  # Interactive backup with comment
+  sshhades backup -i ~/.ssh/id_ed25519 -o backup.enc --comment "My development key"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			flags := &backupFlags{
+				input:        inputFile,
+				output:       outputFile,
+				comment:      comment,
+				algorithm:    algorithm,
+				fastMode:     fast,
+				githubUpload: githubUpload,
+			}
 			return runBackup(flags)
 		},
 	}
 
-	// Required flags
-	cmd.Flags().StringVarP(&flags.input, "input", "i", "", "Path to SSH key file to backup (required)")
-	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "Path for encrypted output file")
-	
-	// Optional flags
-	cmd.Flags().StringVarP(&flags.comment, "comment", "c", "", "Comment/label for the key")
-	cmd.Flags().StringVarP(&flags.algorithm, "algorithm", "a", format.AlgorithmAESGCM, "Encryption algorithm (aes-gcm, chacha20)")
-	cmd.Flags().Uint32VarP(&flags.iterations, "iterations", "n", 0, "Argon2id iterations (0 = auto based on mode)")
-	cmd.Flags().Uint32Var(&flags.memory, "memory", 0, "Argon2id memory usage in MB (0 = auto)")
-	cmd.Flags().Uint8Var(&flags.threads, "threads", 0, "Argon2id parallelism (0 = auto)")
-	cmd.Flags().BoolVar(&flags.fastMode, "fast", false, "Use fast mode (development, less secure but faster)")
-	cmd.Flags().StringVar(&flags.passphraseEnv, "passphrase-env", "", "Environment variable containing passphrase")
-	cmd.Flags().StringVar(&flags.githubRepo, "github-repo", "", "GitHub repository for backup (owner/repo)")
-	cmd.Flags().StringVar(&flags.githubToken, "github-token", "", "GitHub token (defaults to GITHUB_TOKEN env var)")
+	cmd.Flags().StringVarP(&inputFile, "input", "i", "", "Input SSH private key file (required)")
+	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output encrypted file (required)")
+	cmd.Flags().StringVarP(&comment, "comment", "c", "", "Comment/description for the backup")
+	cmd.Flags().StringVarP(&algorithm, "algorithm", "a", "aes", "Encryption algorithm: aes (AES-256-GCM) or chacha20 (ChaCha20-Poly1305)")
+	cmd.Flags().BoolVarP(&fast, "fast", "f", false, "Use fast mode (less secure but faster)")
+	cmd.Flags().BoolVar(&githubUpload, "github", false, "Upload encrypted backup to GitHub")
 
-	// Mark required flags
 	cmd.MarkFlagRequired("input")
+	cmd.MarkFlagRequired("output")
 
 	return cmd
 }
@@ -176,7 +184,7 @@ func runBackup(flags *backupFlags) error {
 	// Upload to GitHub if requested
 	if flags.githubRepo != "" {
 		fmt.Printf("Uploading to GitHub repository %s...\n", flags.githubRepo)
-		if err := uploadToGitHub(flags.output, flags.githubRepo, flags.githubToken, flags.comment); err != nil {
+		if err := uploadToGitHub(flags.output, flags.comment); err != nil {
 			fmt.Printf("⚠️  Warning: GitHub upload failed: %v\n", err)
 			fmt.Println("   The file has been saved locally successfully.")
 		} else {
@@ -193,38 +201,58 @@ func runBackup(flags *backupFlags) error {
 	}
 	fmt.Printf("  Encryption: %s with Argon2id (%d iterations)\n", flags.algorithm, header.Iterations)
 
+	// Upload to GitHub if requested
+	if flags.githubUpload {
+		fmt.Println("\n📤 Uploading to GitHub...")
+		if err := uploadToGitHub(flags.output, flags.comment); err != nil {
+			github.PrintError(fmt.Sprintf("GitHub upload failed: %v", err))
+			github.PrintInfo("Backup saved locally, but not uploaded to GitHub")
+		} else {
+			github.PrintSuccess("Successfully uploaded to GitHub!")
+		}
+	}
+
 	return nil
 }
 
 // uploadToGitHub handles uploading the encrypted file to GitHub repository
-func uploadToGitHub(localPath, repository, token, comment string) error {
-	// Create GitHub client
-	client, err := github.NewClient(token, repository)
+func uploadToGitHub(localPath, comment string) error {
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	if !cfg.IsGitHubConfigured() {
+		return fmt.Errorf("GitHub is not configured. Run 'sshhades github login' first")
+	}
+
+	githubCfg := cfg.GetGitHubConfig()
+
+	// Create authenticated client
+	client, err := github.NewAuthenticatedClient(githubCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub client: %w", err)
+	}
+
+	// Read the encrypted file
+	content, err := os.ReadFile(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to read encrypted file: %w", err)
+	}
+
+	// Generate remote path and commit message
+	filename := filepath.Base(localPath)
+	remotePath := fmt.Sprintf("ssh-keys/%s", filename)
+	
+	commitMessage := fmt.Sprintf("Backup SSH key: %s", filename)
+	if comment != "" {
+		commitMessage = fmt.Sprintf("Backup SSH key: %s - %s", filename, comment)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Ensure repository structure exists
-	if err := client.EnsureRepository(ctx); err != nil {
-		return fmt.Errorf("failed to setup repository: %w", err)
-	}
-
-	// Create/update .gitignore for safety
-	if err := client.CreateGitignore(ctx); err != nil {
-		return fmt.Errorf("failed to setup .gitignore: %w", err)
-	}
-
-	// Generate remote path and commit message
-	remotePath := github.GenerateRemotePath(localPath)
-	commitMessage := github.GenerateCommitMessage(filepath.Base(localPath), comment)
-
-	// Upload the file
-	if err := client.UploadFile(ctx, localPath, remotePath, commitMessage); err != nil {
-		return fmt.Errorf("failed to upload file: %w", err)
-	}
-
-	return nil
+	// Upload file
+	return client.UploadFile(ctx, githubCfg.RepoOwner, githubCfg.RepoName, remotePath, content, commitMessage)
 }
